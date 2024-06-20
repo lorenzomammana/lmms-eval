@@ -789,17 +789,17 @@ class ConfigurableTask(Task):
 
                     def untar_video_data(tar_file):
                         import tarfile
+
                         with tarfile.open(tar_file, "r") as tar_ref:
                             tar_ref.extractall(cache_dir)
                             eval_logger.info(f"Extracted all files from {tar_file} to {cache_dir}")
 
-
-    
                     def concat_tar_parts(tar_parts, output_tar):
-                        with open(output_tar, 'wb') as out_tar:
+                        with open(output_tar, "wb") as out_tar:
                             from tqdm import tqdm
+
                             for part in tqdm(sorted(tar_parts)):
-                                with open(part, 'rb') as part_file:
+                                with open(part, "rb") as part_file:
                                     out_tar.write(part_file.read())
                         eval_logger.info(f"Concatenated parts {tar_parts} into {output_tar}")
 
@@ -811,15 +811,14 @@ class ConfigurableTask(Task):
                     # Concatenate and extract tar files if needed
                     if force_unzip or (not os.path.exists(cache_dir) and len(tar_files) > 0):
                         tar_parts_dict = {}
-                        
+
                         # Group tar parts together
                         for tar_file in tar_files:
-                            base_name = tar_file.split('.tar')[0]
+                            base_name = tar_file.split(".tar")[0]
                             if base_name not in tar_parts_dict:
                                 tar_parts_dict[base_name] = []
                             tar_parts_dict[base_name].append(tar_file)
 
-                        
                         # Concatenate and untar split parts
                         for base_name, parts in tar_parts_dict.items():
                             eval_logger.info(f"Extracting following tar files: {parts}")
@@ -851,20 +850,31 @@ class ConfigurableTask(Task):
             if "local_files_only" in dataset_kwargs:
                 dataset_kwargs.pop("local_files_only")
 
-        self.dataset = datasets.load_dataset(
-            path=self.DATASET_PATH,
-            name=self.DATASET_NAME,
-            download_mode=datasets.DownloadMode.REUSE_DATASET_IF_EXISTS,
-            download_config=download_config,
-            **dataset_kwargs if dataset_kwargs is not None else {},
-        )
-        self.dataset_no_image = datasets.load_dataset(
-            path=self.DATASET_PATH,
-            name=self.DATASET_NAME,
-            download_mode=datasets.DownloadMode.REUSE_DATASET_IF_EXISTS,
-            download_config=download_config,
-            **dataset_kwargs if dataset_kwargs is not None else {},
-        )
+        try:
+            self.dataset = datasets.load_dataset(
+                path=self.DATASET_PATH,
+                name=self.DATASET_NAME,
+                download_mode=datasets.DownloadMode.REUSE_DATASET_IF_EXISTS,
+                download_config=download_config,
+                **dataset_kwargs if dataset_kwargs is not None else {},
+            )
+            self.dataset_no_image = datasets.load_dataset(
+                path=self.DATASET_PATH,
+                name=self.DATASET_NAME,
+                download_mode=datasets.DownloadMode.REUSE_DATASET_IF_EXISTS,
+                download_config=download_config,
+                **dataset_kwargs if dataset_kwargs is not None else {},
+            )
+        except datasets.exceptions.DatasetGenerationError as download_exception:
+            # Failed to load from HF, maybe is a local dataset
+            try:
+                self.dataset = datasets.load_from_disk(self.DATASET_PATH)
+                self.dataset_no_image = datasets.load_from_disk(self.DATASET_PATH)
+            except datasets.exceptions.DatasetGenerationError as local_exception:
+                eval_logger.error(f"Failed to load dataset from HF: {download_exception}")
+                eval_logger.error(f"Failed to load dataset from local: {local_exception}")
+                raise ValueError("Failed to load dataset from HF or local") from None
+
         for doc_name in self.dataset_no_image:
             remove_cols = []
             features = self.dataset_no_image[doc_name].features
