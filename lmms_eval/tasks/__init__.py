@@ -2,6 +2,7 @@ import os, sys
 from typing import List, Union, Dict
 
 from lmms_eval import utils
+import sys
 
 # from lmms_eval import prompts
 from lmms_eval.api.task import TaskConfig, Task, ConfigurableTask
@@ -106,6 +107,24 @@ def include_path(task_dir):
     # Register Benchmarks after all tasks have been added
     include_task_folder(task_dir, register_task=False)
     return 0
+
+
+def include_model(model_dir_model_class: str):
+    """Given a string in the form "model_dir:model_class", import the model class from the model directory.
+
+    The model_dir should be a path to a single .py file containing the model class definition.
+
+    Args:
+        model_dir_model_class: A string of the form "model_dir:model_class
+    """
+    try:
+        model_dir, model_class = model_dir_model_class.split(":")
+        sys.path.append(os.path.dirname(model_dir))
+        model_name = os.path.basename(model_dir).replace(".py", "")
+        exec(f"from {model_name} import {model_class}")
+    except ImportError as e:
+        logger.warning(f"Failed to import {model_class} from {model_name}: {e}")
+        pass
 
 
 def initialize_tasks(verbosity="INFO"):

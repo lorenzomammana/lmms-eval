@@ -21,7 +21,7 @@ from typing import Union
 import hashlib
 
 from lmms_eval import evaluator, utils
-from lmms_eval.tasks import initialize_tasks, include_path, get_task_dict
+from lmms_eval.tasks import include_model, initialize_tasks, include_path, get_task_dict
 from lmms_eval.api.registry import ALL_TASKS
 from lmms_eval.logging_utils import WandbLogger
 from loguru import logger as eval_logger
@@ -123,6 +123,12 @@ def parse_eval_args() -> argparse.Namespace:
         type=str,
         default=None,
         help="Additional path to include if there are external tasks to include.",
+    )
+    parser.add_argument(
+        "--include_model",
+        type=str,
+        default=None,
+        help=("Additional path and class name to include if there are external models to include. " "e.g. /path/to/model.py:ModelClass"),
     )
     parser.add_argument(
         "--gen_kwargs",
@@ -236,6 +242,10 @@ def cli_evaluate_single(args: Union[argparse.Namespace, None] = None) -> None:
     if args.include_path is not None:
         eval_logger.info(f"Including path: {args.include_path}")
         include_path(args.include_path)
+
+    if args.include_model is not None:
+        eval_logger.info(f"Including model: {args.include_model}")
+        include_model(args.include_model)
 
     if os.environ.get("LMMS_EVAL_PLUGINS", None):
         for plugin in os.environ["LMMS_EVAL_PLUGINS"].split(","):

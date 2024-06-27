@@ -49,6 +49,7 @@ if os.environ.get("LMMS_EVAL_PLUGINS", None):
         for model_name, model_class in getattr(m, "AVAILABLE_MODELS").items():
             try:
                 exec(f"from {plugin}.models.{model_name} import {model_class}")
+                logger.info(f"Imported {model_class} from {model_name} using plugin {plugin}")
             except ImportError:
                 pass
 
